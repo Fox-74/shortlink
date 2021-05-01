@@ -46,7 +46,7 @@ def registration(user_name = None, password = None):
         cursor.execute("""INSERT INTO users (user_name, password)
                         VALUES ((?), (?))""", (user_name, password))
         conn.commit()
-        return jsonify(f'Вы зарегистрированы, ', {user_name})
+        return jsonify(f'Вы зарегистрированы')
 conn.commit()
 
 
