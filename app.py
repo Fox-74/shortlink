@@ -1,12 +1,21 @@
 #Добавляем модули
-
+from flask import Flask, request, jsonify
+import sqlite3 as lite
+app = Flask(__name__)
 
 
 
 
 #Создаем БД
+con = lite.connect('short_link_bd.db', check_same_thread=False)
+cur = con.cursor()
+
 
 #Создание интерфейса
+@app.route('/shortlink/<link>', methods=['GET', 'PUT', 'DELETE'])
+def short_link():
+    link = #из БД
+    return jsonify(link)
 
 #Объявляем функции
     #Генератор коротких ссылок
@@ -43,6 +52,11 @@
 
 
 #Help
-
+@app.route('/help')
+def help():
+    return render_tamplate('help.html')
 
 #Дополнения...
+
+if __name__ == '__main__':
+    app.run(host='127.0.0.1', port=8080)
