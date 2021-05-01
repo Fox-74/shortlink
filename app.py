@@ -52,29 +52,32 @@ def non_registration():
 
 
 #Создание интерфейса
-@app.route('/<shortlink>,<user_name>,<password>', methods=['GET', 'PUT', 'DELETE', 'UPDATE'])
-def link_shorter(shortlink = None, user_name = None, password = None):
-    conn = lite.connect("linkbase.db", check_same_thread=False)
-    cursor = conn.cursor()
+try:
+    @app.route('/<shortlink>,<user_name>,<password>', methods=['GET', 'PUT', 'DELETE', 'UPDATE'])
+    def link_shorter(shortlink = None, user_name = None, password = None):
+        conn = lite.connect("linkbase.db", check_same_thread=False)
+        cursor = conn.cursor()
 
-    if user_name != None and password != None and shortlink == None:
-        user_links = ("""SELECT user_name FROM links
-                            WHERE user_name = (?)""", user_name,)
-        return user_links
+        if user_name != None and password != None and shortlink == None:
+            user_links = ("""SELECT user_name FROM links
+                                WHERE user_name = (?)""", user_name,)
+            return user_links
 
-    elif user_name == None and password == None and shortlink != None:
-        check_link = ("""SELECT link_type FROM links 
-                        WHERE shortlink = (?)""", shortlink,)
-        if check_link == None:
-            return jsonify(f'Такой ссылки нет')
+        elif user_name == None and password == None and shortlink != None:
+            check_link = ("""SELECT link_type FROM links 
+                            WHERE shortlink = (?)""", shortlink,)
+            if check_link == None:
+                return jsonify(f'Такой ссылки нет')
 
-        elif check_link != None:
+            elif check_link != None:
 
-            cursor.execute("""UPDATE links SET counter = counter + 1 WHERE shortlink = (?)""", shortlink,)
-            conn.commit()
+                cursor.execute("""UPDATE links SET counter = counter + 1 WHERE shortlink = (?)""", shortlink,)
+                conn.commit()
 
-        elif check_link != 'private' and check_link != 'shared':
-            return jsonify(f'Ссылка будет тут!')
+            elif check_link != 'private' and check_link != 'shared':
+                return jsonify(f'Ссылка будет тут!')
+except TypeError:
+    print("Oops!")
 
 
     # #Определение типа ссылки (Публичные, Общего доступа, Приватные)
