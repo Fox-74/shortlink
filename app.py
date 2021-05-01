@@ -3,33 +3,73 @@ from flask import Flask, request, jsonify
 import sqlite3 as lite
 app = Flask(__name__)
 
+#Создаем БД
+conn = lite.connect("linkbase.db", check_same_thread=False)
+cursor = conn.cursor()
+
+cursor.execute("""CREATE TABLE IF NOT EXISTS users (
+	id	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	user_name TEXT NOT NULL UNIQUE,
+	password TEXT NOT NULL,
+	tg_id INTEGER NOT NULL)""")
+cursor.execute("""CREATE TABLE IF NOT EXISTS user_links (
+	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	user_id	INTEGER NOT NULL,
+	shortlink_id INTEGER NOT NULL)""")
+cursor.execute("""CREATE TABLE IF NOT EXISTS links (
+	id	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
+	longlink TEXT NOT NULL,
+	shortlink TEXT UNIQUE,
+	counter INTEGER NOT NULL,
+	user_name TEXT NOT NULL)""")
+cursor.execute("""CREATE TABLE IF NOT EXISTS link_type (
+	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	type TEXT NOT NULL UNIQUE)""")
+
+conn.commit()
 
 
 @app.route('/shortlink/<link>', methods=['GET', 'PUT', 'DELETE'])
 def short_link():
-    link = #из БД
+    link = 0 #из БД
     return jsonify(link)
-#Создаем БД
-con = lite.connect('short_link_bd.db', check_same_thread=False)
-cur = con.cursor()
+@app.route('/registration/<user_name>,<password>', methods=['GET', 'POST', 'PUT'])
+def registration(user_name = None, password = None):
+    # регистрация
+    if user_name == None or password == None:
+        return jsonify(f'Регистрация невозвожна')
+    check_user = ("""SELECT user_name from users
+                        WHERE user_name = (?)""", (user_name,))
+    if check_user != None:
+        conn = lite.connect("linkbase.db", check_same_thread=False)
+        cursor = conn.cursor()
+        cursor.execute("""INSERT INTO users (user_name, password)
+                        VALUES ((?), (?))""", (user_name, password))
+        conn.commit()
+        return jsonify(f'Вы зарегистрированы, ', {user_name})
 
 
-#Создание интерфейса
-@app.route('/<link>', methods=['GET', 'PUT', 'DELETE'])
-def short_link():
-    link = #из БД
-    #Определение типа ссылки (Публичные, Общего доступа, Приватные)
-    if link.[0] == 'p': #Сылка публичная
-        return jsonify(link)
-    elif link.[0] == 'all' or link.[0] == 'pr':
-        #Авторизация JWT
-        return jsonify(link)
 
 
-@app.route('/shortlink/<clink>', methods=['GET', 'PUT', 'DELETE'])
-def c_link():
-    link = #из БД
-    return jsonify(link)
+# #Создание интерфейса
+# @app.route('/<link>,<user_name>,<password>', methods=['GET', 'PUT', 'DELETE'])
+# def short_link(link = None, user_name = None, password = None):
+#     link = #из БД
+#     if user_name != None and password != None and link == None:
+#         user_links = ("""SELECT short""")
+#         return user_links
+#     #Определение типа ссылки (Публичные, Общего доступа, Приватные)
+#     if link.[0] == 'p': #Сылка публичная
+#         return jsonify(link)
+#     elif link.[0] == 'all' or link.[0] == 'pr':
+#         #Авторизация JWT
+#         return jsonify(link)
+
+
+# @app.route('/shortlink/<clink>', methods=['GET', 'PUT', 'DELETE'])
+# def c_link():
+#     link = #из БД
+#     return jsonify(link)
 
 #Объявляем функции
     #Генератор коротких ссылок
@@ -65,10 +105,10 @@ def c_link():
 
 
 
-#Help
-@app.route('/help')
-def help():
-    return render_tamplate('help.html')
+# #Help
+# @app.route('/help')
+# def help():
+#     return render_tamplate('help.html')
 
 #Дополнения...
 
