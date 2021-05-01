@@ -53,7 +53,7 @@ def non_registration():
 
 #Создание интерфейса
 @app.route('/<shortlink>,<user_name>,<password>', methods=['GET', 'PUT', 'DELETE', 'UPDATE'])
-def short_link(shortlink = None, user_name = None, password = None):
+def link_shorter(shortlink = None, user_name = None, password = None):
     conn = lite.connect("linkbase.db", check_same_thread=False)
     cursor = conn.cursor()
 
@@ -70,7 +70,7 @@ def short_link(shortlink = None, user_name = None, password = None):
 
         elif check_link != None:
 
-            cursor.execute("""UPDATE links SET counter = counter + 1 WHERE shortlink = '')""")
+            cursor.execute("""UPDATE links SET counter = counter + 1 WHERE shortlink = (?)""", shortlink,)
             conn.commit()
 
         elif check_link != 'private' and check_link != 'shared':
