@@ -5,15 +5,29 @@ app = Flask(__name__)
 
 
 
-
+@app.route('/shortlink/<link>', methods=['GET', 'PUT', 'DELETE'])
+def short_link():
+    link = #из БД
+    return jsonify(link)
 #Создаем БД
 con = lite.connect('short_link_bd.db', check_same_thread=False)
 cur = con.cursor()
 
 
 #Создание интерфейса
-@app.route('/shortlink/<link>', methods=['GET', 'PUT', 'DELETE'])
+@app.route('/<link>', methods=['GET', 'PUT', 'DELETE'])
 def short_link():
+    link = #из БД
+    #Определение типа ссылки (Публичные, Общего доступа, Приватные)
+    if link.[0] == 'p': #Сылка публичная
+        return jsonify(link)
+    elif link.[0] == 'all' or link.[0] == 'pr':
+        #Авторизация JWT
+        return jsonify(link)
+
+
+@app.route('/shortlink/<clink>', methods=['GET', 'PUT', 'DELETE'])
+def c_link():
     link = #из БД
     return jsonify(link)
 
@@ -22,7 +36,7 @@ def short_link():
 
 
 
-#Авторизация/Регистрация
+#Авторизация/Регистрация JWT
     #
     #Запись в БД
 
