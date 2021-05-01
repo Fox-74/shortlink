@@ -47,7 +47,7 @@ def registration(user_name = None, password = None):
                         VALUES ((?), (?))""", (user_name, password))
         conn.commit()
         return jsonify(f'Вы зарегистрированы')
-conn.commit()
+    conn.commit()
 
 
 
