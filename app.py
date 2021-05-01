@@ -21,10 +21,9 @@ cursor.execute("""CREATE TABLE IF NOT EXISTS links (
 	longlink TEXT NOT NULL,
 	shortlink TEXT UNIQUE,
 	counter INTEGER NOT NULL,
-	user_name TEXT NOT NULL)""")
-cursor.execute("""CREATE TABLE IF NOT EXISTS link_type (
-	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	type TEXT NOT NULL UNIQUE)""")
+	user_name TEXT NOT NULL,
+	link_type TEXT)""")
+
 
 conn.commit()
 
@@ -34,12 +33,10 @@ def short_link():
     link = 0 #из БД
     return jsonify(link)
 @app.route('/registration/<user_name>,<password>', methods=['GET', 'POST', 'PUT'])
-def registration(user_name = None, password = None):
+def registration(user_name = 'guest', password = 'guest'):
     # регистрация
     conn = lite.connect("linkbase.db", check_same_thread=False)
     cursor = conn.cursor()
-    if user_name == None or password == None:
-        return jsonify(f'Регистрация невозвожна')
     check_user = ("""SELECT user_name from users
                         WHERE user_name = (?)""", (user_name,))
     if check_user != None:
@@ -49,21 +46,43 @@ def registration(user_name = None, password = None):
         return jsonify(f'Вы зарегистрированы')
     conn.commit()
 
+@app.route('/registration')
+def non_registration():
+    return jsonify(f'Регистрация невозвожна')
 
 
-# #Создание интерфейса
-# @app.route('/<link>,<user_name>,<password>', methods=['GET', 'PUT', 'DELETE'])
-# def short_link(link = None, user_name = None, password = None):
-#     link = #из БД
-#     if user_name != None and password != None and link == None:
-#         user_links = ("""SELECT short""")
-#         return user_links
-#     #Определение типа ссылки (Публичные, Общего доступа, Приватные)
-#     if link.[0] == 'p': #Сылка публичная
-#         return jsonify(link)
-#     elif link.[0] == 'all' or link.[0] == 'pr':
-#         #Авторизация JWT
-#         return jsonify(link)
+#Создание интерфейса
+@app.route('/<shortlink>,<user_name>,<password>', methods=['GET', 'PUT', 'DELETE', 'UPDATE'])
+def short_link(shortlink = None, user_name = None, password = None):
+    conn = lite.connect("linkbase.db", check_same_thread=False)
+    cursor = conn.cursor()
+
+    if user_name != None and password != None and shortlink == None:
+        user_links = ("""SELECT user_name FROM links
+                            WHERE user_name = (?)""", user_name,)
+        return user_links
+
+    elif user_name == None and password == None and shortlink != None:
+        check_link = ("""SELECT link_type FROM links 
+                        WHERE shortlink = (?)""", shortlink,)
+        if check_link == None:
+            return jsonify(f'Такой ссылки нет')
+
+        elif check_link != None:
+
+            cursor.execute("""UPDATE links SET counter = counter + 1 WHERE shortlink = '')""")
+            conn.commit()
+
+        elif check_link != 'private' and check_link != 'shared':
+            return jsonify(f'Ссылка будет тут!')
+
+
+    # #Определение типа ссылки (Публичные, Общего доступа, Приватные)
+    # if link.[0] == 'p': #Сылка публичная
+    #     return jsonify(link)
+    # elif link.[0] == 'all' or link.[0] == 'pr':
+    #     #Авторизация JWT
+    #     return jsonify(link)
 
 
 # @app.route('/shortlink/<clink>', methods=['GET', 'PUT', 'DELETE'])
