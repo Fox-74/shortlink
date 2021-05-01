@@ -36,18 +36,18 @@ def short_link():
 @app.route('/registration/<user_name>,<password>', methods=['GET', 'POST', 'PUT'])
 def registration(user_name = None, password = None):
     # регистрация
+    conn = lite.connect("linkbase.db", check_same_thread=False)
+    cursor = conn.cursor()
     if user_name == None or password == None:
         return jsonify(f'Регистрация невозвожна')
     check_user = ("""SELECT user_name from users
                         WHERE user_name = (?)""", (user_name,))
     if check_user != None:
-        conn = lite.connect("linkbase.db", check_same_thread=False)
-        cursor = conn.cursor()
         cursor.execute("""INSERT INTO users (user_name, password)
                         VALUES ((?), (?))""", (user_name, password))
         conn.commit()
         return jsonify(f'Вы зарегистрированы, ', {user_name})
-
+conn.commit()
 
 
 
