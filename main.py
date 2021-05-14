@@ -1,18 +1,22 @@
 from flask import Flask, request, jsonify, make_response
-from flask_sqlalchemy import SQLAlchemy
+from flask_sqlalchemy import SQLAlchemy as alchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 import jwt
 import datetime
 from functools import wraps
+# from hashlib import sha1
+from base64 import urlsafe_b64encode
+import hashlib
+
 
 app = Flask(__name__)
 
 app.config['SECRET_KEY'] = '1Sec2r4et' #соль
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////shorterv2/linkbasev2.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////linkbasev2.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
-db = SQLAlchemy(app)
+db = alchemy(app)
 
 
 class Users(db.Model):
@@ -49,7 +53,7 @@ def token_required(f):
         except:
             return jsonify({'message': 'token is invalid'})
 
-            return f(current_user, *args, **kwargs)
+        return f(current_user, *args, **kwargs)
 
     return decorator
 
@@ -144,6 +148,20 @@ def delete_link(current_user, name):
     db.session.commit()
 
     return jsonify({'message': 'Link deleted'})
+
+
+@app.route('/test', methods=['GET', 'POST'])
+def getHash():
+    data = request.get_json()
+    hashed_data = urlsafe_b64encode(hashlib.sha1(str(data['id']).encode()).digest()).decode()[0:12]
+
+    return hashlib.sha1(hashed_data)
+
+# def check_password(hashed_password, user_password):
+#     password, salt = hashed_password.split(':')
+#     return password == hashlib.sha256(salt.encode() + user_password.encode()).hexdigest()
+
+#print(getHash("http://google.com"))
 
 
 if __name__ == '__main__':
