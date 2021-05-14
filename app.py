@@ -1,6 +1,10 @@
 #Добавляем модули
 from flask import Flask, request, jsonify
 import sqlite3 as lite
+from base64 import urlsafe_b64encode
+import hashlib
+
+
 app = Flask(__name__)
 
 #Создаем БД
@@ -11,18 +15,26 @@ cursor.execute("""CREATE TABLE IF NOT EXISTS users (
 	id	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	user_name TEXT NOT NULL UNIQUE,
 	password TEXT NOT NULL,
-	tg_id INTEGER NOT NULL)""")
+	tg_id INTEGER)""")
+
 cursor.execute("""CREATE TABLE IF NOT EXISTS user_links (
 	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-	user_id	INTEGER NOT NULL,
-	shortlink_id INTEGER NOT NULL)""")
+	user_id INTEGER,
+	links_id INTEGER,
+	FOREIGN KEY (links_id) REFERENCES links(id)
+	FOREIGN KEY (user_id) REFERENCES users(id)
+	)""")
+
 cursor.execute("""CREATE TABLE IF NOT EXISTS links (
-	id	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
+	id	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	user_id INTEGER,
 	longlink TEXT NOT NULL,
-	shortlink TEXT UNIQUE,
-	counter INTEGER NOT NULL,
-	user_name TEXT NOT NULL,
-	link_type TEXT)""")
+	shortlink TEXT,
+	counter INTEGER,
+	user_name TEXT,
+	link_type TEXT,
+	FOREIGN KEY (user_id) REFERENCES users(id)
+	)""")
 
 
 conn.commit()
@@ -46,7 +58,7 @@ def registration(user_name = 'guest', password = 'guest'):
         return jsonify(f'Вы зарегистрированы')
     conn.commit()
 
-@app.route('/registration')
+@app.route('/registration', methods=['GET', 'POST'])
 def non_registration():
     return jsonify(f'Регистрация невозвожна')
 
@@ -78,6 +90,35 @@ try:
                 return jsonify(f'Ссылка будет тут!')
 except TypeError:
     print("Oops!")
+
+
+@app.route('/makelink', methods=['GET', 'POST'])
+def makelink():
+    conn = lite.connect("linkbase.db", check_same_thread=False)
+    cursor = conn.cursor()
+    data = request.get_json()
+    name = data['name']
+    password = data['password']
+    longlink = data['link']
+    linktype = data['linktype']
+    shortlink = str(urlsafe_b64encode(hashlib.sha1(str(data['link']).encode()).digest()).decode()[0:12])
+    counter = 0
+    check_user = cursor.execute("""SELECT user_name FROM users WHERE user_name = (?)""", (name,)).fetchall()
+    check_password = cursor.execute("""SELECT password FROM users WHERE user_name = (?)""", (name,)).fetchall()
+    if check_user[0][0] == name and check_password[0][0] == password:
+        user_id = cursor.execute("""SELECT id FROM users WHERE user_name = (?)""", (name,)).fetchall()
+        user_id = user_id[0][0]
+
+        cursor.execute("""INSERT INTO links (user_id, longlink, counter, shortlink, user_name, link_type) VALUES( (?), (?), (?), (?), (?), (?) )""", (user_id, longlink, counter, shortlink, name, linktype))
+
+        conn.commit()
+
+
+        return jsonify(data)
+    return jsonify(data)
+
+
+
 
 
     # #Определение типа ссылки (Публичные, Общего доступа, Приватные)

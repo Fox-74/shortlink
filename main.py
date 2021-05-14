@@ -150,7 +150,7 @@ def delete_link(current_user, name):
     return jsonify({'message': 'Link deleted'})
 
 
-@app.route('/test', methods=['GET', 'POST'])
+@app.route('/makelink', methods=['GET', 'POST'])
 def getHash():
     data = request.get_json()
     hashed_data = urlsafe_b64encode(hashlib.sha1(str(data['id']).encode()).digest()).decode()[0:12]
