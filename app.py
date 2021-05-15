@@ -1,4 +1,5 @@
 #Добавляем модули
+import flask
 from flask import Flask, request, jsonify
 import sqlite3 as lite
 from base64 import urlsafe_b64encode
@@ -65,29 +66,23 @@ def non_registration():
 
 #Создание интерфейса
 try:
-    @app.route('/<shortlink>,<user_name>,<password>', methods=['GET', 'PUT', 'DELETE', 'UPDATE'])
-    def link_shorter(shortlink = None, user_name = None, password = None):
+    @app.route('/<shortlink>', methods=['GET', 'PUT', 'DELETE', 'UPDATE'])
+    def link_shorter(shortlink):
+        # data = request.get_json()
         conn = lite.connect("linkbase.db", check_same_thread=False)
         cursor = conn.cursor()
 
-        if user_name != None and password != None and shortlink == None:
-            user_links = ("""SELECT user_name FROM links
-                                WHERE user_name = (?)""", user_name,)
-            return user_links
+        get_long_link = cursor.execute("""SELECT longlink FROM links WHERE shortlink = (?)""", (shortlink,)).fetchone()
+        get_long_link = get_long_link[0]
+        type_link = cursor.execute("""SELECT link_type FROM links WHERE shortlink = (?)""", (shortlink,)).fetchall()
+        # if type_link == "public":
+        #     cursor.execute("""UPDATE links SET counter = counter + 1 WHERE shortlink = (?)""", shortlink)
+        #     return flask.redirect(get_long_link)
+        # print(get_long_link)
+        return flask.redirect(get_long_link)
+        # else:
+        #     return ("!!!")
 
-        elif user_name == None and password == None and shortlink != None:
-            check_link = ("""SELECT link_type FROM links 
-                            WHERE shortlink = (?)""", shortlink,)
-            if check_link == None:
-                return jsonify(f'Такой ссылки нет')
-
-            elif check_link != None:
-
-                cursor.execute("""UPDATE links SET counter = counter + 1 WHERE shortlink = (?)""", shortlink,)
-                conn.commit()
-
-            elif check_link != 'private' and check_link != 'shared':
-                return jsonify(f'Ссылка будет тут!')
 except TypeError:
     print("Oops!")
 
