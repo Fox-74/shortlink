@@ -12,10 +12,13 @@ from functools import wraps
 # from hashlib import sha1
 from base64 import urlsafe_b64encode
 from flask_sqlalchemy import SQLAlchemy as alchemy
+import bcrypt
 
 app = Flask(__name__)
 
-app.config['SECRET_KEY'] = '1Sec2r4et' #соль
+app.config['SECRET_KEY'] = '1Sec2r4et' #соль в явном виде
+#a = bcrypt.hashpw("password".encode(),bcrypt.gensalt()) передача пароля от пользователя
+#b = bcrypt.checkpw("password".encode(), a)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////Projects/linkbase.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
