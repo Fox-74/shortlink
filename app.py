@@ -82,7 +82,7 @@ try:
         return flask.redirect(get_long_link)
         # else:
         #     return ("!!!")
-
+        #
 except TypeError:
     print("Oops!")
 
