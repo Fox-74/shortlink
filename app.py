@@ -16,7 +16,7 @@ import bcrypt
 
 app = Flask(__name__)
 
-app.config['SECRET_KEY'] = '1Sec2r4et' #соль в явном виде
+app.config['SECRET_KEY'] = '1Sec2r4et' #соль в явном виде нвдо спрятать
 #a = bcrypt.hashpw("password".encode(),bcrypt.gensalt()) передача пароля от пользователя
 #b = bcrypt.checkpw("password".encode(), a)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////Projects/linkbase.db'
