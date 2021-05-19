@@ -16,10 +16,10 @@ import bcrypt
 
 app = Flask(__name__)
 
-app.config['SECRET_KEY'] = '1Sec2r4et' #соль в явном виде нвдо спрятать
-#a = bcrypt.hashpw("password".encode(),bcrypt.gensalt()) передача пароля от пользователя
-#b = bcrypt.checkpw("password".encode(), a)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////Projects/linkbase.db'
+app.config['SECRET_KEY'] = '1Sec2r4et' #соль в явном виде надо спрятать
+# a = bcrypt.hashpw("password".encode(),bcrypt.gensalt()) #передача пароля от пользователя
+# b = bcrypt.checkpw("password".encode(), a)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////project_shorter_link/shortlink/linkbase.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
 db = alchemy(app)
@@ -29,6 +29,7 @@ db = alchemy(app)
 conn = lite.connect("linkbase.db", check_same_thread=False)
 cursor = conn.cursor()
 
+#Таблица позователей
 cursor.execute("""CREATE TABLE IF NOT EXISTS users (
 	id	INTEGER NOT NULL PRIMARY KEY,
 	user_name TEXT UNIQUE,
@@ -37,6 +38,7 @@ cursor.execute("""CREATE TABLE IF NOT EXISTS users (
 	admin BLOB,
 	tg_id INTEGER)""")
 
+#Класс позователей
 class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_name = db.Column(db.String(50), unique=True)
@@ -45,6 +47,7 @@ class Users(db.Model):
     admin = db.Column(db.Boolean)
     tg_id = db.Column(db.Integer)
 
+#Таблица связей ссылок и пользователей
 cursor.execute("""CREATE TABLE IF NOT EXISTS user_links (
 	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 	user_id INTEGER,
@@ -53,6 +56,7 @@ cursor.execute("""CREATE TABLE IF NOT EXISTS user_links (
 	FOREIGN KEY (user_id) REFERENCES users(id)
 	)""")
 
+#Таблица ссылок (Длинные, короткие, типы ссылок, счетчик переходов)
 cursor.execute("""CREATE TABLE IF NOT EXISTS links (
 	id	INTEGER PRIMARY KEY,
 	user_id INTEGER,
@@ -63,6 +67,8 @@ cursor.execute("""CREATE TABLE IF NOT EXISTS links (
 	link_type TEXT,
 	FOREIGN KEY (user_id) REFERENCES users(id)
 	)""")
+
+#Класс ссылок
 class Links(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer)
@@ -74,7 +80,9 @@ class Links(db.Model):
 
 conn.commit()
 
+#Объявление функций:
 
+#Проверка авторизации
 def token_required(f):
     @wraps(f)
     def decorator(*args, **kwargs):
@@ -98,10 +106,15 @@ def token_required(f):
     return decorator
 
 
+#Объявление маршрутов:
+
+#Нерабочий
 @app.route('/shortlink/<link>', methods=['GET', 'PUT', 'DELETE'])
 def short_link():
     link = 0 #из БД
     return jsonify(link)
+
+#Регистрация пользователя пробная (пароль не хешированнный) (SQL заросы, удалить маршрут после отладки кода)
 @app.route('/registration/<user_name>,<password>', methods=['GET', 'POST', 'PUT'])
 def registration(user_name = 'guest', password = 'guest'):
     # регистрация
@@ -116,12 +129,8 @@ def registration(user_name = 'guest', password = 'guest'):
         return jsonify(f'Вы зарегистрированы')
     conn.commit()
 
-@app.route('/registration', methods=['GET', 'POST'])
-def non_registration():
-    return jsonify(f'Регистрация невозвожна')
 
-
-#Создание интерфейса
+#Маршрут (переход по короткой ссылке)
 try:
     @app.route('/<shortlink>', methods=['GET', 'PUT', 'DELETE', 'UPDATE'])
     def link_shorter(shortlink):
@@ -131,26 +140,32 @@ try:
 
         get_long_link = cursor.execute("""SELECT longlink FROM links WHERE shortlink = (?)""", (shortlink,)).fetchone()
         get_long_link = get_long_link[0]
-        type_link = cursor.execute("""SELECT link_type FROM links WHERE shortlink = (?)""", (shortlink,)).fetchall()
-        # if type_link == "public":
-        #     cursor.execute("""UPDATE links SET counter = counter + 1 WHERE shortlink = (?)""", shortlink)
-        #     return flask.redirect(get_long_link)
-        # print(get_long_link)
+        get_link_type = cursor.execute("""SELECT link_type FROM links WHERE shortlink = (?)""", (shortlink,)).fetchone()
+        get_link_type = get_link_type[0]
+
+        if get_link_type == "shared":
+            cursor.execute("""UPDATE links SET counter = counter + 1 WHERE shortlink = (?)""", shortlink)
+            return flask.redirect(get_long_link)
+
+        elif get_link_type == "public":
+            pass #auth
+
+        elif get_link_type == "private":
+            pass #auth+
+
         return flask.redirect(get_long_link)
-        # else:
-        #     return ("!!!")
-        #
+
 except TypeError:
     print("Oops!")
 
-
+#Маршрут создания ссылок (Доработать проверку одинаковых ссылок)
 @app.route('/makelink', methods=['GET', 'POST'])
 @token_required
 def makelink(public_id):
     conn = lite.connect("linkbase.db", check_same_thread=False)
     cursor = conn.cursor()
     data = request.get_json()
-    name = data['name']
+    name = data['user_name']
     #password = data['password']
     token_json = data['token']
     longlink = data['link']
@@ -164,57 +179,9 @@ def makelink(public_id):
     user_id = user_id[0][0]
 
     cursor.execute("""INSERT INTO links (user_id, longlink, counter, shortlink, user_name, link_type) VALUES( (?), (?), (?), (?), (?), (?) )""", (user_id, longlink, counter, shortlink, name, linktype))
-
     conn.commit()
 
-
-        #return jsonify(data)
     return jsonify(data)
-
-
-
-
-
-    # #Определение типа ссылки (Публичные, Общего доступа, Приватные)
-    # if link.[0] == 'p': #Сылка публичная
-    #     return jsonify(link)
-    # elif link.[0] == 'all' or link.[0] == 'pr':
-    #     #Авторизация JWT
-    #     return jsonify(link)
-
-
-# @app.route('/shortlink/<clink>', methods=['GET', 'PUT', 'DELETE'])
-# def c_link():
-#     link = #из БД
-#     return jsonify(link)
-
-#Объявляем функции
-    #Генератор коротких ссылок
-
-
-
-#Авторизация/Регистрация JWT
-    #
-    #Запись в БД
-
-
-
-#Получение данных от пользователя
-    #Получение ссылки (длинной)
-    #Создание короткой ссылки при помощи генератора или проверка совпадений с желаемой ссылкой
-    #Запись ссылки в БД
-
-
-#Отправка пользвателю короткой ссылки для использования и запись в БД
-
-
-
-
-#Получение короткой ссылки
-    #Проверка наличия короткой ссылки в БД
-    #Если ссылка есть, то записать счетчик ссылки +1, перенаправление на адрес
-    #из БД(генерировать по короткой ссылке
-    #Если ссылки нет, то отправить ошибку
 
 
 
@@ -227,43 +194,19 @@ def makelink(public_id):
 # def help():
 #     return render_tamplate('help.html')
 
-#Дополнения...
-def token_required(f):
-    @wraps(f)
-    def decorator(*args, **kwargs):
 
-        token = None
-
-        if 'x-access-tokens' in request.headers:
-            token = request.headers['x-access-tokens']
-
-        if not token:
-            return jsonify({'message': 'a valid token is missing'})
-
-        try:
-            data = jwt.decode(token, app.config['SECRET_KEY'])
-            current_user = Users.query.filter_by(public_id=data['public_id']).first()
-        except:
-            return jsonify({'message': 'token is invalid'})
-
-        return f(current_user, *args, **kwargs)
-
-    return decorator
-
-
+#Маршурт для регистрации пользователя (JWT + Alchemy)
 @app.route('/register', methods=['GET', 'POST'])
 def signup_user():
     data = request.get_json()
-
     hashed_password = generate_password_hash(data['password'], method='sha256')
-
     new_user = Users(public_id=str(uuid.uuid4()), user_name=data['user_name'], password=hashed_password, admin=False)
     db.session.add(new_user)
     db.session.commit()
-
     return jsonify({'message': 'registered successfully'})
 
 
+#Маршрут авторизации пользователя
 @app.route('/login', methods=['GET', 'POST'])
 def login_user():
     auth = request.authorization
@@ -281,7 +224,7 @@ def login_user():
 
     return make_response('could not verify', 401, {'WWW.Authentication': 'Basic realm: "login required"'})
 
-
+#Маршрут для вывода списка пользователей которые есть в базе
 @app.route('/user', methods=['GET'])
 def get_all_users():
     users = Users.query.all()
@@ -291,7 +234,7 @@ def get_all_users():
     for user in users:
         user_data = {}
         user_data['public_id'] = user.public_id
-        user_data['user_name'] = user.name
+        user_data['user_name'] = user.user_name
         user_data['password'] = user.password
         user_data['admin'] = user.admin
 
@@ -300,6 +243,7 @@ def get_all_users():
     return jsonify({'users': result})
 
 
+#Маршрут для получения ссылок которые есть в базе
 @app.route('/links', methods=['GET', 'POST'])
 @token_required
 def get_links(current_user, public_id):
@@ -316,20 +260,21 @@ def get_links(current_user, public_id):
 
     return jsonify({'list_of_links': output})
 
+# #Маршурт для получения человекочитаемой ссылки
+# @app.route('/links', methods=['POST', 'GET'])
+# @token_required
+# def create_link(current_user):
+#     data = request.get_json()
+#
+#     new_links = Links(longlink=data['longlink'], shortlink=data['shortlink'], user_id=current_user.id)
+#     db.session.add(new_links)
+#     db.session.commit()
+#
+#     return jsonify({'message': 'new link created'})
 
-@app.route('/links', methods=['POST', 'GET'])
-@token_required
-def create_link(current_user):
-    data = request.get_json()
 
-    new_links = Links(longlink=data['longlink'], shortlink=data['shortlink'], user_id=current_user.id)
-    db.session.add(new_links)
-    db.session.commit()
-
-    return jsonify({'message': 'new link created'})
-
-
-@app.route('/links/<name>', methods=['DELETE'])
+#Маршрут для удаления ссылки
+@app.route('/deletelink/<name>', methods=['DELETE'])
 @token_required
 def delete_link(current_user, name):
     link = Links.query.filter_by(name=name, user_id=current_user.id).first()
@@ -342,17 +287,12 @@ def delete_link(current_user, name):
     return jsonify({'message': 'Link deleted'})
 
 
-@app.route('/makelink', methods=['GET', 'POST'])
-def getHash():
-    data = request.get_json()
-    hashed_data = urlsafe_b64encode(hashlib.sha1(str(data['id']).encode()).digest()).decode()[0:12]
-
-    return hashlib.sha1(hashed_data)
-
 # def check_password(hashed_password, user_password):
 #     password, salt = hashed_password.split(':')
 #     return password == hashlib.sha256(salt.encode() + user_password.encode()).hexdigest()
 
 #print(getHash("http://google.com"))
+
+
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8080)
