@@ -1,6 +1,6 @@
 #Добавляем модули
 import flask
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response, render_template
 import sqlite3 as lite
 from base64 import urlsafe_b64encode
 import hashlib
@@ -108,55 +108,43 @@ def token_required(f):
 
 #Объявление маршрутов:
 
-#Нерабочий
-@app.route('/shortlink/<link>', methods=['GET', 'PUT', 'DELETE'])
-def short_link():
-    link = 0 #из БД
-    return jsonify(link)
-
-#Регистрация пользователя пробная (пароль не хешированнный) (SQL заросы, удалить маршрут после отладки кода)
-@app.route('/registration/<user_name>,<password>', methods=['GET', 'POST', 'PUT'])
-def registration(user_name = 'guest', password = 'guest'):
-    # регистрация
-    conn = lite.connect("linkbase.db", check_same_thread=False)
-    cursor = conn.cursor()
-    check_user = ("""SELECT user_name from users
-                        WHERE user_name = (?)""", (user_name,))
-    if check_user != None:
-        cursor.execute("""INSERT INTO users (user_name, password)
-                        VALUES ((?), (?))""", (user_name, password))
-        conn.commit()
-        return jsonify(f'Вы зарегистрированы')
-    conn.commit()
+#Информация о сервисе
+# #Help
+@app.route('/help')
+def help():
+    return render_template('help.html')
 
 
-#Маршрут (переход по короткой ссылке)
-try:
-    @app.route('/<shortlink>', methods=['GET', 'PUT', 'DELETE', 'UPDATE'])
-    def link_shorter(shortlink):
-        # data = request.get_json()
-        conn = lite.connect("linkbase.db", check_same_thread=False)
-        cursor = conn.cursor()
 
-        get_long_link = cursor.execute("""SELECT longlink FROM links WHERE shortlink = (?)""", (shortlink,)).fetchone()
-        get_long_link = get_long_link[0]
-        get_link_type = cursor.execute("""SELECT link_type FROM links WHERE shortlink = (?)""", (shortlink,)).fetchone()
-        get_link_type = get_link_type[0]
+#Маршурт для регистрации пользователя (JWT + Alchemy)
+@app.route('/register', methods=['GET', 'POST'])
+def signup_user():
+    data = request.get_json()
+    hashed_password = generate_password_hash(data['password'], method='sha256')
+    new_user = Users(public_id=str(uuid.uuid4()), user_name=data['user_name'], password=hashed_password, admin=False)
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({'message': 'registered successfully'})
 
-        if get_link_type == "shared":
-            cursor.execute("""UPDATE links SET counter = counter + 1 WHERE shortlink = (?)""", shortlink)
-            return flask.redirect(get_long_link)
 
-        elif get_link_type == "public":
-            pass #auth
+#Маршрут авторизации пользователя
+@app.route('/login', methods=['GET', 'POST'])
+def login_user():
+    auth = request.authorization
 
-        elif get_link_type == "private":
-            pass #auth+
+    if not auth or not auth.username or not auth.password:
+        return make_response('could not verify', 401, {'WWW.Authentication': 'Basic realm: "login required"'})
 
-        return flask.redirect(get_long_link)
+    user = Users.query.filter_by(user_name=auth.username).first()
 
-except TypeError:
-    print("Oops!")
+    if check_password_hash(user.password, auth.password):
+        token = jwt.encode(
+            {'public_id': user.public_id, 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60)},
+            app.config['SECRET_KEY'])
+        return jsonify({'token': token.decode('UTF-8')})
+
+    return make_response('could not verify', 401, {'WWW.Authentication': 'Basic realm: "login required"'})
+
 
 #Маршрут создания ссылок (Доработать проверку одинаковых ссылок)
 @app.route('/makelink', methods=['GET', 'POST'])
@@ -193,46 +181,35 @@ def makelink(public_id):
 
     return jsonify(f'Ваша ссылка http://127.0.0.1:8080/{shortlink}')
 
+#Маршрут (переход по короткой ссылке)
+try:
+    @app.route('/<shortlink>', methods=['GET', 'PUT', 'DELETE', 'UPDATE'])
+    def link_shorter(shortlink):
+        # data = request.get_json()
+        conn = lite.connect("linkbase.db", check_same_thread=False)
+        cursor = conn.cursor()
+
+        get_long_link = cursor.execute("""SELECT longlink FROM links WHERE shortlink = (?)""", (shortlink,)).fetchone()
+        get_long_link = get_long_link[0]
+        get_link_type = cursor.execute("""SELECT link_type FROM links WHERE shortlink = (?)""", (shortlink,)).fetchone()
+        get_link_type = get_link_type[0]
+
+        if get_link_type == "shared":
+            cursor.execute("""UPDATE links SET counter = counter + 1 WHERE shortlink = (?)""", shortlink)
+            return flask.redirect(get_long_link)
+
+        elif get_link_type == "public":
+            pass #auth
+
+        elif get_link_type == "private":
+            pass #auth+
+
+        return flask.redirect(get_long_link)
+
+except TypeError:
+    print("Oops!")
 
 
-#Информация о сервисе
-
-
-
-# #Help
-# @app.route('/help')
-# def help():
-#     return render_tamplate('help.html')
-
-
-#Маршурт для регистрации пользователя (JWT + Alchemy)
-@app.route('/register', methods=['GET', 'POST'])
-def signup_user():
-    data = request.get_json()
-    hashed_password = generate_password_hash(data['password'], method='sha256')
-    new_user = Users(public_id=str(uuid.uuid4()), user_name=data['user_name'], password=hashed_password, admin=False)
-    db.session.add(new_user)
-    db.session.commit()
-    return jsonify({'message': 'registered successfully'})
-
-
-#Маршрут авторизации пользователя
-@app.route('/login', methods=['GET', 'POST'])
-def login_user():
-    auth = request.authorization
-
-    if not auth or not auth.username or not auth.password:
-        return make_response('could not verify', 401, {'WWW.Authentication': 'Basic realm: "login required"'})
-
-    user = Users.query.filter_by(user_name=auth.username).first()
-
-    if check_password_hash(user.password, auth.password):
-        token = jwt.encode(
-            {'public_id': user.public_id, 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60)},
-            app.config['SECRET_KEY'])
-        return jsonify({'token': token.decode('UTF-8')})
-
-    return make_response('could not verify', 401, {'WWW.Authentication': 'Basic realm: "login required"'})
 
 #Маршрут для вывода списка пользователей которые есть в базе
 @app.route('/user', methods=['GET'])
@@ -270,18 +247,6 @@ def get_links(current_user, public_id):
 
     return jsonify({'list_of_links': output})
 
-# #Маршурт для получения человекочитаемой ссылки
-# @app.route('/links', methods=['POST', 'GET'])
-# @token_required
-# def create_link(current_user):
-#     data = request.get_json()
-#
-#     new_links = Links(longlink=data['longlink'], shortlink=data['shortlink'], user_id=current_user.id)
-#     db.session.add(new_links)
-#     db.session.commit()
-#
-#     return jsonify({'message': 'new link created'})
-
 
 #Маршрут для удаления ссылки
 @app.route('/deletelink/<name>', methods=['DELETE'])
@@ -295,6 +260,7 @@ def delete_link(current_user, name):
     db.session.commit()
 
     return jsonify({'message': 'Link deleted'})
+
 
 
 # def check_password(hashed_password, user_password):
