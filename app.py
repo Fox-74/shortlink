@@ -166,22 +166,32 @@ def makelink(public_id):
     cursor = conn.cursor()
     data = request.get_json()
     name = data['user_name']
-    #password = data['password']
-    token_json = data['token']
     longlink = data['link']
     linktype = data['linktype']
-    shortlink = str(urlsafe_b64encode(hashlib.sha1(str(data['link']).encode()).digest()).decode()[0:12])
+    shortlink_word = data['shortlink']
     counter = 0
-    #check_user = cursor.execute("""SELECT user_name FROM users WHERE user_name = (?)""", (name,)).fetchall()
-    #check_password = cursor.execute("""SELECT password FROM users WHERE user_name = (?)""", (name,)).fetchall()
-    #if check_user[0][0] == name and check_password[0][0] == password:
     user_id = cursor.execute("""SELECT id FROM users WHERE user_name = (?)""", (name,)).fetchall()
     user_id = user_id[0][0]
+    if shortlink_word != None:
+        shortlink = shortlink_word
+        check_shortlink = cursor.execute("""SELECT shortlink FROM links WHERE shortlink = (?)""", (shortlink,)).fetchone()
+        if check_shortlink != None:
+            check_shortlink = check_shortlink[0]
+        print(check_shortlink)
+        if check_shortlink == shortlink:
+            return jsonify(f'Такая ссылка уже сущесвует!')
+
+
+    else:
+        shortlink = str(urlsafe_b64encode(hashlib.sha1(str(data['link']).encode()).digest()).decode()[0:12])
+        check_shortlink = cursor.execute("""SELECT shortlink FROM links WHERE shortlink = (?)""", (shortlink,)).fetchone()
+        if check_shortlink != None:
+            return jsonify(f'Такая ссылка уже сущесвует!')
 
     cursor.execute("""INSERT INTO links (user_id, longlink, counter, shortlink, user_name, link_type) VALUES( (?), (?), (?), (?), (?), (?) )""", (user_id, longlink, counter, shortlink, name, linktype))
     conn.commit()
 
-    return jsonify(data)
+    return jsonify(f'Ваша ссылка http://127.0.0.1:8080/{shortlink}')
 
 
 
@@ -218,7 +228,7 @@ def login_user():
 
     if check_password_hash(user.password, auth.password):
         token = jwt.encode(
-            {'public_id': user.public_id, 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)},
+            {'public_id': user.public_id, 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60)},
             app.config['SECRET_KEY'])
         return jsonify({'token': token.decode('UTF-8')})
 
