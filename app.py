@@ -2,6 +2,7 @@
 import flask
 from flask import Flask, request, jsonify, make_response, render_template
 import sqlite3 as lite
+from flask_jwt_extended import get_jwt_identity
 from base64 import urlsafe_b64encode
 import hashlib
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -20,7 +21,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = '1Sec2r4et' #соль в явном виде надо спрятать
 # a = bcrypt.hashpw("password".encode(),bcrypt.gensalt()) #передача пароля от пользователя
 # b = bcrypt.checkpw("password".encode(), a)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////project_shorter_link/shortlink/linkbase.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////shortlink/linkbase.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
 db = alchemy(app)
@@ -101,6 +102,7 @@ def token_required(f):
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'])
             current_user = Users.query.filter_by(public_id=data['public_id']).first()
+            #cur_user = get_jwt_identity(), 200
         except:
             return jsonify({'message': 'token is invalid'})
 
@@ -144,7 +146,8 @@ def login_user():
         token = jwt.encode(
             {'public_id': user.public_id, 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60)},
             app.config['SECRET_KEY'])
-        return jsonify({'token': token.decode('UTF-8')})
+        return jsonify({'token': token.decode('UTF-8'), 'public_id':user.public_id})
+
 
     return make_response('could not verify', 401, {'WWW.Authentication': 'Basic realm: "login required"'})
 
@@ -217,13 +220,11 @@ except TypeError:
 
 @app.route('/edit', methods=['GET', 'POST'])
 @token_required
-def edit_link(public_id):
+def edit_link(current_user):
     conn = lite.connect("linkbase.db", check_same_thread=False)
     cursor = conn.cursor()
-
-
-    data = cursor.execute("""SELECT * FROM users""").fetchall()
-    print(data)
+    user_id = current_user.id
+    data = cursor.execute("""SELECT * FROM links WHERE user_id = (?)""", (user_id, )).fetchall()
     return jsonify(data)
 
     # data = request.get_json()
