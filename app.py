@@ -13,6 +13,7 @@ from functools import wraps
 from base64 import urlsafe_b64encode
 from flask_sqlalchemy import SQLAlchemy as alchemy
 import bcrypt
+import json
 
 app = Flask(__name__)
 
@@ -77,6 +78,8 @@ class Links(db.Model):
     counter = db.Column(db.Integer)
     user_name = db.Column(db.String(50))
     link_type = db.Column(db.String(50))
+
+
 
 conn.commit()
 
@@ -208,6 +211,24 @@ try:
 
 except TypeError:
     print("Oops!")
+
+
+#Маршрут для редактирования ссылок (изменение уровня доступа, удаление)
+
+@app.route('/edit', methods=['GET', 'POST'])
+@token_required
+def edit_link(public_id):
+    conn = lite.connect("linkbase.db", check_same_thread=False)
+    cursor = conn.cursor()
+
+
+    data = cursor.execute("""SELECT * FROM users""").fetchall()
+    print(data)
+    return jsonify(data)
+
+    # data = request.get_json()
+    # linktype = data['linktype']
+    # shortlink = data['shortlink']
 
 
 
