@@ -2,7 +2,7 @@
 import flask
 from flask import Flask, request, jsonify, make_response, render_template
 import sqlite3 as lite
-from flask_jwt_extended import get_jwt_identity
+
 from base64 import urlsafe_b64encode
 import hashlib
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -21,7 +21,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = '1Sec2r4et' #соль в явном виде надо спрятать
 # a = bcrypt.hashpw("password".encode(),bcrypt.gensalt()) #передача пароля от пользователя
 # b = bcrypt.checkpw("password".encode(), a)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////shortlink/linkbase.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////project_shorter_link/shortlink/linkbase.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
 db = alchemy(app)
@@ -92,6 +92,7 @@ def token_required(f):
     def decorator(*args, **kwargs):
 
         token = None
+
 
         if 'x-access-tokens' in request.headers:
             token = request.headers['x-access-tokens']
@@ -188,36 +189,67 @@ def makelink(public_id):
     return jsonify(f'Ваша ссылка http://127.0.0.1:8080/{shortlink}')
 
 #Маршрут (переход по короткой ссылке)
-try:
-    @app.route('/<shortlink>', methods=['GET', 'PUT', 'DELETE', 'UPDATE'])
-    def link_shorter(shortlink):
-        # data = request.get_json()
-        conn = lite.connect("linkbase.db", check_same_thread=False)
-        cursor = conn.cursor()
+@app.route('/<shortlink>', methods=['GET', 'PUT', 'DELETE', 'UPDATE'])
+def link_shorter(shortlink):
+    # data = request.get_json()
+    conn = lite.connect("linkbase.db", check_same_thread=False)
+    cursor = conn.cursor()
 
-        get_long_link = cursor.execute("""SELECT longlink FROM links WHERE shortlink = (?)""", (shortlink,)).fetchone()
-        get_long_link = get_long_link[0]
-        get_link_type = cursor.execute("""SELECT link_type FROM links WHERE shortlink = (?)""", (shortlink,)).fetchone()
-        get_link_type = get_link_type[0]
+    get_long_link = cursor.execute("""SELECT longlink FROM links WHERE shortlink = (?)""", (shortlink,)).fetchone()
+    get_long_link = get_long_link[0]
+    get_link_type = cursor.execute("""SELECT link_type FROM links WHERE shortlink = (?)""", (shortlink,)).fetchone()
+    get_link_type = get_link_type[0]
 
-        if get_link_type == "shared":
-            cursor.execute("""UPDATE links SET counter = counter + 1 WHERE shortlink = (?)""", shortlink)
-            return flask.redirect(get_long_link)
-
-        elif get_link_type == "public":
-            pass #auth
-
-        elif get_link_type == "private":
-            pass #auth+
-
+    if get_link_type == "public":
+        cursor.execute("""UPDATE links SET counter = counter + 1 WHERE shortlink = (?)""", (shortlink,))
+        conn.commit()
         return flask.redirect(get_long_link)
 
-except TypeError:
-    print("Oops!")
+    else:
+        return flask.redirect('/login')
+
+@app.route('/shortlink', methods=['GET', 'POST', 'PUT', 'DELETE', 'UPDATE'])
+@token_required
+def auth_link_shorter(current_user):
+    conn = lite.connect("linkbase.db", check_same_thread=False)
+    cursor = conn.cursor()
+
+    data = request.get_json()
+    shortlink = data['shortlink']
+
+    get_long_link = cursor.execute("""SELECT longlink FROM links WHERE shortlink = (?)""", (shortlink,)).fetchone()
+    get_long_link = get_long_link[0]
+    print(get_long_link)
+    get_link_type = cursor.execute("""SELECT link_type FROM links WHERE shortlink = (?)""", (shortlink,)).fetchone()
+    get_link_type = get_link_type[0]
+    user_id_bd = cursor.execute("""SELECT user_id FROM links WHERE shortlink = (?)""", (shortlink,)).fetchone()
+    user_id_bd = user_id_bd[0]
+
+
+    if get_link_type == "shared":
+        cursor.execute("""UPDATE links SET counter = counter + 1 WHERE shortlink = (?)""", (shortlink,))
+        conn.commit()
+        return flask.redirect(get_long_link)
+
+    elif get_link_type == "private":
+        if current_user.id == user_id_bd:
+
+            cursor.execute("""UPDATE links SET counter = counter + 1 WHERE shortlink = (?)""", (shortlink,))
+            conn.commit()
+            return flask.redirect(get_long_link)
+
+        else:
+            return jsonify(f'У вас нет прав доступа к данной сылке!')
+
+
+
+
+
+
+
 
 
 #Маршрут для редактирования ссылок (изменение уровня доступа, удаление)
-
 @app.route('/edit', methods=['GET', 'POST'])
 @token_required
 def edit_link(current_user):
