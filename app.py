@@ -244,18 +244,40 @@ def auth_link_shorter(current_user):
 
 
 #Маршрут для редактирования ссылок (изменение уровня доступа, удаление)
-@app.route('/edit', methods=['GET', 'POST'])
+@app.route('/edit', methods=['GET', 'POST', 'PUT', 'DELETE', 'UPDATE'])
 @token_required
 def edit_link(current_user):
-    conn = lite.connect("linkbase.db", check_same_thread=False)
-    cursor = conn.cursor()
-    user_id = current_user.id
-    data = cursor.execute("""SELECT * FROM links WHERE user_id = (?)""", (user_id, )).fetchall()
-    return jsonify(data)
+    data = request.get_json()
 
-    # data = request.get_json()
-    # linktype = data['linktype']
-    # shortlink = data['shortlink']
+    if data == None:
+        conn = lite.connect("linkbase.db", check_same_thread=False)
+        cursor = conn.cursor()
+        user_id = current_user.id
+        data_ = cursor.execute("""SELECT id, longlink, shortlink, link_type FROM links WHERE user_id = (?)""",
+                               (user_id,)).fetchall()
+        return jsonify(data_)
+
+    else:
+        shortlink = data['shortlink']
+        linktype = data['linktype']
+        deletelink = data['deletelink']
+        longlink = data['longlink']
+
+    if longlink != None and shortlink != None and shortlink != 'delete':
+
+        try:
+            conn = lite.connect("linkbase.db", check_same_thread=False)
+            cursor = conn.cursor()
+            cursor.execute("""UPDATE links SET shortlink = (?) WHERE longlink = (?)""", (shortlink, longlink))
+            conn.commit()
+        except:
+            print("НИНАДА!")
+
+    return jsonify(f'Я сделяль!')
+
+
+
+
 
 
 
