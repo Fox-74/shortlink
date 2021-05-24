@@ -243,12 +243,6 @@ def auth_link_shorter(current_user):
 
 
 
-
-
-
-
-
-
 #Маршрут для редактирования ссылок (изменение уровня доступа, удаление)
 @app.route('/edit', methods=['GET', 'POST'])
 @token_required
