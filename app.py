@@ -188,6 +188,7 @@ def makelink(public_id):
 
     return jsonify(f'Ваша ссылка http://127.0.0.1:8080/{shortlink}')
 
+
 #Маршрут (переход по короткой ссылке)
 @app.route('/<shortlink>', methods=['GET', 'PUT', 'DELETE', 'UPDATE'])
 def link_shorter(shortlink):
