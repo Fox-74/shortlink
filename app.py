@@ -114,6 +114,11 @@ def token_required(f):
 
 #Объявление маршрутов:
 
+
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    return render_template('index.html')
+
 #Информация о сервисе
 # #Help
 @app.route('/help')
