@@ -122,13 +122,18 @@ def signup_user():
     db.session.add(new_user)
     db.session.commit()
     return jsonify({'message': 'registered successfully'})
-
-
+@app.route('/', methods=['GET', 'POST'])
+def test1():
+    return render_template('index.html')
+@app.route('/test', methods=['GET', 'POST'])
+def test():
+    return render_template('json.html')
 #Маршрут авторизации пользователя
 @app.route('/login', methods=['GET', 'POST'])
 def login_user():
+    if request.method == 'GET':
+        return render_template('help.html')
     auth = request.authorization
-
     if not auth or not auth.username or not auth.password:
         return make_response('could not verify', 401, {'WWW.Authentication': 'Basic realm: "login required"'})
 
