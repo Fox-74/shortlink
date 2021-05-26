@@ -1,26 +1,21 @@
 #Добавляем модули
 import flask
 from flask import Flask, request, jsonify, make_response, render_template
-import sqlite3 as lite
-
-from base64 import urlsafe_b64encode
-import hashlib
-from werkzeug.security import generate_password_hash, check_password_hash
+import datetime
 import uuid
 import jwt
-import datetime
+import sqlite3 as lite
+import hashlib
+from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-# from hashlib import sha1
 from base64 import urlsafe_b64encode
 from flask_sqlalchemy import SQLAlchemy as alchemy
-import bcrypt
-import json
+
+
 
 app = Flask(__name__)
 
-app.config['SECRET_KEY'] = '1Sec2r4et' #соль в явном виде надо спрятать
-# a = bcrypt.hashpw("password".encode(),bcrypt.gensalt()) #передача пароля от пользователя
-# b = bcrypt.checkpw("password".encode(), a)
+app.config['SECRET_KEY'] = '1Sec2r4et'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////project_shorter_link/shortlink/linkbase.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
@@ -37,8 +32,7 @@ cursor.execute("""CREATE TABLE IF NOT EXISTS users (
 	user_name TEXT UNIQUE,
 	password TEXT,
 	public_id INTERGER,
-	admin BLOB,
-	tg_id INTEGER)""")
+	admin BLOB)""")
 
 #Класс позователей
 class Users(db.Model):
@@ -47,7 +41,6 @@ class Users(db.Model):
     password = db.Column(db.String(50))
     public_id = db.Column(db.Integer)
     admin = db.Column(db.Boolean)
-    tg_id = db.Column(db.Integer)
 
 #Таблица связей ссылок и пользователей
 cursor.execute("""CREATE TABLE IF NOT EXISTS user_links (
@@ -79,8 +72,6 @@ class Links(db.Model):
     counter = db.Column(db.Integer)
     user_name = db.Column(db.String(50))
     link_type = db.Column(db.String(50))
-
-
 
 conn.commit()
 
@@ -263,7 +254,7 @@ def edit_link(current_user):
         deletelink = data['deletelink']
         longlink = data['longlink']
 
-    if longlink != None and shortlink != None and shortlink != 'delete':
+    if longlink != None and shortlink != None and shortlink != 'delete':  # Замена хешированной сыллки на человекочитаемую
 
         try:
             conn = lite.connect("linkbase.db", check_same_thread=False)
@@ -273,7 +264,37 @@ def edit_link(current_user):
         except:
             print("НИНАДА!")
 
-    return jsonify(f'Я сделяль!')
+    elif longlink != None and shortlink == 'delete': # Удаление человекоподобной сылки, замена на хэш
+        try:
+            conn = lite.connect("linkbase.db", check_same_thread=False)
+            cursor = conn.cursor()
+
+            shortlink = str(urlsafe_b64encode(hashlib.sha1(longlink.encode()).digest()).decode()[0:12])
+            cursor.execute("""UPDATE links SET shortlink = (?) WHERE longlink = (?)""", (shortlink, longlink))
+            conn.commit()
+        except:
+            print("ДАДА!")
+
+
+    elif longlink != None and linktype == 'public' or linktype == 'shared' or linktype == 'private':  # Изменение уровня доступа
+        try:
+            conn = lite.connect("linkbase.db", check_same_thread=False)
+            cursor = conn.cursor()
+            cursor.execute("""UPDATE links SET link_type = (?) WHERE longlink = (?)""", (linktype, longlink))
+            conn.commit()
+        except:
+            print("ДАДА!")
+
+    elif longlink != None and deletelink == 'delete':  # Удаление записи
+        try:
+            conn = lite.connect("linkbase.db", check_same_thread=False)
+            cursor = conn.cursor()
+            cursor.execute("""DELETE FROM links WHERE longlink = (?)""", (longlink,))
+            conn.commit()
+        except:
+            print("ДАДА!")
+
+    return jsonify(f'Операция выполнена!')
 
 
 
@@ -282,7 +303,7 @@ def edit_link(current_user):
 
 
 #Маршрут для вывода списка пользователей которые есть в базе
-@app.route('/user', methods=['GET'])
+@app.route('/admin/user', methods=['GET'])
 def get_all_users():
     users = Users.query.all()
 
@@ -301,7 +322,7 @@ def get_all_users():
 
 
 #Маршрут для получения ссылок которые есть в базе
-@app.route('/links', methods=['GET', 'POST'])
+@app.route('/admin/links', methods=['GET', 'POST'])
 @token_required
 def get_links(current_user, public_id):
     links = Links.query.all()
@@ -316,28 +337,6 @@ def get_links(current_user, public_id):
         output.append(link_data)
 
     return jsonify({'list_of_links': output})
-
-
-#Маршрут для удаления ссылки
-@app.route('/deletelink/<name>', methods=['DELETE'])
-@token_required
-def delete_link(current_user, name):
-    link = Links.query.filter_by(name=name, user_id=current_user.id).first()
-    if not link:
-        return jsonify({'message': 'link does not exist'})
-
-    db.session.delete(link)
-    db.session.commit()
-
-    return jsonify({'message': 'Link deleted'})
-
-
-
-# def check_password(hashed_password, user_password):
-#     password, salt = hashed_password.split(':')
-#     return password == hashlib.sha256(salt.encode() + user_password.encode()).hexdigest()
-
-#print(getHash("http://google.com"))
 
 
 if __name__ == '__main__':
