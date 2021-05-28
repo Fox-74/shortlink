@@ -16,7 +16,7 @@ from flask_sqlalchemy import SQLAlchemy as alchemy
 app = Flask(__name__)
 
 app.config['SECRET_KEY'] = '1Sec2r4et'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////project_shorter_link/shortlink/linkbase.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////shortlinkv2/linkbase.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
 db = alchemy(app)
@@ -89,14 +89,14 @@ def token_required(f):
             token = request.headers['x-access-tokens']
 
         if not token:
-            return jsonify({'message': 'a valid token is missing'})
+            return jsonify({'message': 'Валидный токен отсутствует'})
 
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'])
             current_user = Users.query.filter_by(public_id=data['public_id']).first()
             #cur_user = get_jwt_identity(), 200
         except:
-            return jsonify({'message': 'token is invalid'})
+            return jsonify({'message': 'Невалидный токен'})
 
         return f(current_user, *args, **kwargs)
 
@@ -121,7 +121,7 @@ def signup_user():
     new_user = Users(public_id=str(uuid.uuid4()), user_name=data['user_name'], password=hashed_password, admin=False)
     db.session.add(new_user)
     db.session.commit()
-    return jsonify({'message': 'registered successfully'})
+    return jsonify({'message': 'Регистрация прошла успешно!'})
 
 
 #Маршрут авторизации пользователя
@@ -130,7 +130,7 @@ def login_user():
     auth = request.authorization
 
     if not auth or not auth.username or not auth.password:
-        return make_response('could not verify', 401, {'WWW.Authentication': 'Basic realm: "login required"'})
+        return make_response('Невозможно верифицироваться', 401, {'WWW.Authentication': 'Basic realm: "login required"'})
 
     user = Users.query.filter_by(user_name=auth.username).first()
 
@@ -138,10 +138,10 @@ def login_user():
         token = jwt.encode(
             {'public_id': user.public_id, 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60)},
             app.config['SECRET_KEY'])
-        return jsonify({'token': token.decode('UTF-8'), 'public_id':user.public_id})
+        return jsonify({'token': token.decode('UTF-8')})
 
 
-    return make_response('could not verify', 401, {'WWW.Authentication': 'Basic realm: "login required"'})
+    return make_response('Невозможно верифицироваться', 401, {'WWW.Authentication': 'Basic realm: "login required"'})
 
 
 #Маршрут создания ссылок (Доработать проверку одинаковых ссылок)
@@ -262,7 +262,7 @@ def edit_link(current_user):
             cursor.execute("""UPDATE links SET shortlink = (?) WHERE longlink = (?)""", (shortlink, longlink))
             conn.commit()
         except:
-            print("НИНАДА!")
+            print("Операция отменена. Проверьте параметры.")
 
     elif longlink != None and shortlink == 'delete': # Удаление человекоподобной сылки, замена на хэш
         try:
@@ -273,7 +273,7 @@ def edit_link(current_user):
             cursor.execute("""UPDATE links SET shortlink = (?) WHERE longlink = (?)""", (shortlink, longlink))
             conn.commit()
         except:
-            print("ДАДА!")
+            print("Операция отменена. Проверьте параметры.")
 
 
     elif longlink != None and linktype == 'public' or linktype == 'shared' or linktype == 'private':  # Изменение уровня доступа
@@ -283,7 +283,7 @@ def edit_link(current_user):
             cursor.execute("""UPDATE links SET link_type = (?) WHERE longlink = (?)""", (linktype, longlink))
             conn.commit()
         except:
-            print("ДАДА!")
+            print("Операция отменена. Проверьте параметры!")
 
     elif longlink != None and deletelink == 'delete':  # Удаление записи
         try:
@@ -292,9 +292,9 @@ def edit_link(current_user):
             cursor.execute("""DELETE FROM links WHERE longlink = (?)""", (longlink,))
             conn.commit()
         except:
-            print("ДАДА!")
+            print("Операция отменена. Проверьте параметры.!")
 
-    return jsonify(f'Операция выполнена!')
+    return jsonify(f'Операция выполнена! Ссылка удалена')
 
 
 
