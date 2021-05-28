@@ -110,7 +110,11 @@ def token_required(f):
 @app.route('/help')
 def help():
     return render_template('help.html')
-
+@app.route('/', methods=['POST', 'GET'])
+def index():
+    if request.method == "POST":
+        print(request.form)
+    return render_template('index.html')
 
 
 #Маршурт для регистрации пользователя (JWT + Alchemy)
@@ -125,8 +129,9 @@ def signup_user():
 
 
 #Маршрут авторизации пользователя
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['POST', 'GET'])
 def login_user():
+
     auth = request.authorization
 
     if not auth or not auth.username or not auth.password:
@@ -138,6 +143,7 @@ def login_user():
         token = jwt.encode(
             {'public_id': user.public_id, 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60)},
             app.config['SECRET_KEY'])
+
         return jsonify({'token': token.decode('UTF-8')})
 
 
