@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html >
+<head>
+  <meta charset="UTF-8">
+  <title>LinkShorter</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+
+
+      <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+
+</head>
+
+<body>
+<script>
+  // эта функция сработает при нажатии на кнопку
+  function sendJSON() {
+    // с помощью jQuery обращаемся к элементам на странице по их именам
+    let user_name = document.querySelector('#user_name');
+    let password = document.querySelector('#password');
+    // а вот сюда мы поместим ответ от сервера
+    let result = document.querySelector('.result');
+    // создаём новый экземпляр запроса XHR
+    let xhr = new XMLHttpRequest();
+    // адрес, куда мы отправим нашу JSON-строку
+    let url = "/login";
+    // открываем соединение
+    xhr.open("POST", url, true);
+    // устанавливаем заголовок — выбираем тип контента, который отправится на сервер, в нашем случае мы явно пишем, что это JSON
+    xhr.setRequestHeader("Content-Type", "application/json");
+    // когда придёт ответ на наше обращение к серверу, мы его обработаем здесь
+    xhr.onreadystatechange = function () {
+      // если запрос принят и сервер ответил, что всё в порядке
+      if (xhr.readyState === 4 && xhr.status === 200) {
+        // выводим то, что ответил нам сервер — так мы убедимся, что данные он получил правильно
+        result.innerHTML = this.responseText;
+      }
+    };
+    // преобразуем наши данные JSON в строку
+    var data = JSON.stringify({ "user_name": user_name.value, "password": password.value });
+    // когда всё готово, отправляем JSON на сервер
+    xhr.send(data);
+  }
+</script>
+  <h1>LinkShorter</h1>
+<div id="wrapper">
+	<form id="signin" method="post" action="" autocomplete="off">
+		<input type="text" id="user_name" name="user_name" placeholder="username" />
+		<input type="password" id="password" name="password" placeholder="password" />
+		<button type="submit" onclick="sendJSON()">&#xf0da;</button>
+
+	</form>
+</div>
+</body>
+</html>
+
+
