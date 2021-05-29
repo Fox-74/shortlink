@@ -16,7 +16,7 @@ from flask_sqlalchemy import SQLAlchemy as alchemy
 app = Flask(__name__)
 
 app.config['SECRET_KEY'] = '1Sec2r4et'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////shortlinkv2/linkbase.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////project_shorter_link/shortlink/linkbase.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
 db = alchemy(app)
@@ -122,11 +122,13 @@ def index():
 def signup_user():
     data = request.get_json()
     hashed_password = generate_password_hash(data['password'], method='sha256')
-    new_user = Users(public_id=str(uuid.uuid4()), user_name=data['user_name'], password=hashed_password, admin=False)
-    db.session.add(new_user)
-    db.session.commit()
-    return jsonify({'message': 'Регистрация прошла успешно!'})
-
+    try:
+        new_user = Users(public_id=str(uuid.uuid4()), user_name=data['user_name'], password=hashed_password, admin=False)
+        db.session.add(new_user)
+        db.session.commit()
+        return jsonify({'message': 'Регистрация прошла успешно!'})
+    except:
+        return jsonify({'message': 'Пользователь с таким именем уже есть!'})
 
 #Маршрут авторизации пользователя
 @app.route('/login', methods=['POST', 'GET'])
