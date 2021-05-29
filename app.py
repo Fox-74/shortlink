@@ -16,7 +16,7 @@ from flask_sqlalchemy import SQLAlchemy as alchemy
 app = Flask(__name__)
 
 app.config['SECRET_KEY'] = '1Sec2r4et'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////project_shorter_link/shortlink/linkbase.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////shortlink4/linkbase.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
 db = alchemy(app)
@@ -252,7 +252,7 @@ def edit_link(current_user):
         conn = lite.connect("linkbase.db", check_same_thread=False)
         cursor = conn.cursor()
         user_id = current_user.id
-        data_ = cursor.execute("""SELECT id, longlink, shortlink, link_type FROM links WHERE user_id = (?)""",
+        data_ = cursor.execute("""SELECT id, longlink, shortlink, link_type, counter FROM links WHERE user_id = (?)""",
                                (user_id,)).fetchall()
         return jsonify(data_)
 
@@ -267,10 +267,10 @@ def edit_link(current_user):
         try:
             conn = lite.connect("linkbase.db", check_same_thread=False)
             cursor = conn.cursor()
-            cursor.execute("""UPDATE links SET shortlink = (?) WHERE longlink = (?)""", (shortlink, longlink))
+            cursor.execute("""UPDATE links SET shortlink = (?) WHERE longlink = (?)""", (shortlink, longlink)).fetchone()
             conn.commit()
         except:
-            print("Операция отменена. Проверьте параметры.")
+            return jsonify("Операция отменена. Проверьте параметры.")
 
     elif longlink != None and shortlink == 'delete': # Удаление человекоподобной сылки, замена на хэш
         try:
@@ -278,29 +278,29 @@ def edit_link(current_user):
             cursor = conn.cursor()
 
             shortlink = str(urlsafe_b64encode(hashlib.sha1(longlink.encode()).digest()).decode()[0:12])
-            cursor.execute("""UPDATE links SET shortlink = (?) WHERE longlink = (?)""", (shortlink, longlink))
+            cursor.execute("""UPDATE links SET shortlink = (?) WHERE longlink = (?)""", (shortlink, longlink)).fetcall()
             conn.commit()
         except:
-            print("Операция отменена. Проверьте параметры.")
+            return  jsonify("Операция отменена. Проверьте параметры.")
 
 
     elif longlink != None and linktype == 'public' or linktype == 'shared' or linktype == 'private':  # Изменение уровня доступа
         try:
             conn = lite.connect("linkbase.db", check_same_thread=False)
             cursor = conn.cursor()
-            cursor.execute("""UPDATE links SET link_type = (?) WHERE longlink = (?)""", (linktype, longlink))
+            cursor.execute("""UPDATE links SET link_type = (?) WHERE longlink = (?)""", (linktype, longlink)).fetchone()
             conn.commit()
         except:
-            print("Операция отменена. Проверьте параметры!")
+            return jsonify("Операция отменена. Проверьте параметры!")
 
     elif longlink != None and deletelink == 'delete':  # Удаление записи
         try:
             conn = lite.connect("linkbase.db", check_same_thread=False)
             cursor = conn.cursor()
-            cursor.execute("""DELETE FROM links WHERE longlink = (?)""", (longlink,))
+            cursor.execute("""DELETE FROM links WHERE longlink = (?)""", (longlink,)).fetchall()
             conn.commit()
         except:
-            print("Операция отменена. Проверьте параметры.!")
+            return jsonify("Операция отменена. Проверьте параметры.!")
 
     return jsonify(f'Операция выполнена!')
 
