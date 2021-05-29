@@ -302,7 +302,7 @@ def edit_link(current_user):
         except:
             print("Операция отменена. Проверьте параметры.!")
 
-    return jsonify(f'Операция выполнена! Ссылка удалена')
+    return jsonify(f'Операция выполнена!')
 
 
 
