@@ -1,4 +1,5 @@
 #Добавляем модули
+import requests
 import flask
 from flask import Flask, request, jsonify, make_response, render_template
 import datetime
@@ -11,7 +12,7 @@ from functools import wraps
 from base64 import urlsafe_b64encode
 from flask_sqlalchemy import SQLAlchemy as alchemy
 
-
+counter = 10
 
 app = Flask(__name__)
 
@@ -41,6 +42,18 @@ class Users(db.Model):
     password = db.Column(db.String(50))
     public_id = db.Column(db.Integer)
     admin = db.Column(db.Boolean)
+
+
+cursor.execute("""CREATE TABLE IF NOT EXISTS jokes (
+	id	INTEGER NOT NULL PRIMARY KEY,
+	joke TEXT UNIQUE,
+	icon TEXT,
+	)""")
+
+class Jokes(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    joke = db.Column(db.String(50), unique=True)
+    icon = db.Coumn(db.String(50))
 
 #Таблица связей ссылок и пользователей
 cursor.execute("""CREATE TABLE IF NOT EXISTS user_links (
@@ -305,7 +318,29 @@ def edit_link(current_user):
     return jsonify(f'Операция выполнена!')
 
 
+@app.route('/admin/joke', methods=['GET'])
+def get_jokes():
+    jokes = Jokes.query.all()
 
+    result = []
+    response = []
+
+
+    for i_res in [1,2,3,4,5,6,7,8,9,10]:
+        i_res_data = {}
+        i_res_data = requests.get('https://api.chucknorris.io/jokes/random').content
+
+        response.append(i_res_data)
+
+    for joke in jokes:
+        joke_data = {}
+        joke_data['id'] = joke.response.content['id']
+        joke_data['joke'] = joke.response.content['value']
+        joke_data['icon'] = joke.response.content['icon_url']
+
+        result.append(joke_data)
+
+    return jsonify({'joke': result})
 
 
 
